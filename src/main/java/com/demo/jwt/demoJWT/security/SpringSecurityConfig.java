@@ -20,6 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 //Se creo una clase Configuration para centralizar lo necesario con respecto a la seguridadd
 @Configuration
+//@EnableMethodSecurity(prePostEnabled = true) //Esta anotacion sirve para habilitar las anotaciones de autorizacion como por ejemplo PreAuthorize, PostAuthorize, etc
 public class SpringSecurityConfig {
 
     @Autowired
@@ -40,6 +41,8 @@ public class SpringSecurityConfig {
     }
 
 
+    //El agregado de roles se puede hacer de forma mas dinamica, mediante algun servicio que consulta la base de datos pero para el ejemplo se establecen programaticamente
+    //Las reglas de seguridad establecidad se ejecutan en el orden especificado, por ello hay que tener cuidado
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http.authorizeHttpRequests((auth) -> auth
@@ -47,7 +50,11 @@ public class SpringSecurityConfig {
                 .requestMatchers( "/v3/api-docs/**", "/swagger-ui/**","/swagger-ui.html" ).permitAll() //Urls publicas para acceder a documentacion, /v3/api-docs/** para ver en formato JSON segun especificacion Open Api, lo demas  mediante la interfaz Swagger UI
                 .requestMatchers(HttpMethod.GET,"/api/users/**").permitAll()
                 .requestMatchers(HttpMethod.POST,"/api/users/register").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/users").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN") //Solo usuarios con el ROL ROLE_ADMIN pueden crear usuarios (El rol se especifica sin ROLE_)
+                .requestMatchers(HttpMethod.GET,"/api/products", "/api/products/{id}").hasAnyRole("ADMIN", "USER") //Solo usuarios con roles ADMIN y USERS pueden ver todos los productos y su detalle
+                .requestMatchers(HttpMethod.POST,"/api/products").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT,"/api/products/{id}").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE,"/api/products/{id}").hasRole("ADMIN")
                 .anyRequest().authenticated())
                 .addFilterBefore(new JwtValidationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .addFilter(new JwtAuthenticationFilter(authenticationManager())) //Se agrega filtro personalizado a la cadena de filtros (Al final posterior a los filtros estandar de Spring)
